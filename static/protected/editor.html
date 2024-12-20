@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor</title>
+    <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/camanjs/4.1.2/caman.full.min.js"></script>
+    <script src="../static/js/editor.js"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+
+</head>
+
+<body>
+    <nav>
+        <h1>Image Editor</h1>
+        <button class="btn btn-warning" hx-post="/logout" hx-trigger=" click">Logout</button>
+        <button id="savetocloudbtn">Save to cloud</button>
+    </nav>
+    <main>
+        <div class="editor">
+            <div class="canvas">
+                <canvas id="canvas"></canvas>
+                <label for="uploadbtn" class="uploadLabel btn" id="uploadhide">Upload image
+                    <input type="file" id="uploadbtn" accept="image/*">
+                </label>
+
+            </div>
+            <div class="controls">
+                <div class="sliders">
+                    <label for="hue">Hue</label>
+                    <input id="hue" name="hue" type="range" min="0" max="300" value="0">
+                    <label for="contrast">Contrast</label>
+                    <input id="contrast" name="contrast" type="range" min="-20" max="20" value="0">
+                    <label for="contrast">Brightness</label>
+                    <input id="brightness" name="brightness" type="range" min="-20" max="20" value="0">
+                    <label for="vibrance">Vibrance</label>
+                    <input id="vibrance" name="vibrance" type="range" min="0" max="400" value="0">
+                    <label for="sepia">Sepia</label>
+                    <input id="sepia" name="sepia" type="range" min="0" max="100" value="0">
+                    <label for="contrast">Vignette</label>
+                    <input id="vignette" name="vignette" type="range" min="0" max="100" value="0">
+                </div>
+                <div class="filters">
+                    <button id="noisebtn" class="btn btn-primary">Noise</button>
+                    <button id="hdrbtn" class="btn btn-primary">HDR Effect</button>
+
+                </div>
+                <div class="action-buttons">
+                    <!-- <label for="uploadnewbtn" class="btn" id="uploadshow">Add new image
+                        <input type="file" id="uploadnewbtn" accept="image/*">
+                    </label> -->
+                    <button id="resetbtn" class="btn btn-warning">Reset Filters</button>
+                    <button id="savebtn" class="btn btn-success">Save Image</button>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+
+<link rel="stylesheet" href="../static/css/editor.css">
+
+</html>
