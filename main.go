@@ -108,13 +108,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var userID int
 	err := db.QueryRow("SELECT password, id FROM users WHERE username = ?", username).Scan(&hashedPassword, &userID)
 	if err != nil {
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		fmt.Fprintf(w, `<div>Invalid username or password</div>`)
 		return
 	}
 
 	if !checkPasswordHash(password, hashedPassword) {
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
-		return
+		fmt.Fprintf(w, `<div>Invalid username or password</div>`)
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -220,10 +219,24 @@ func serveHTML(w http.ResponseWriter, r *http.Request) {
 	log.Println(userID)
 	http.ServeFile(w, r, "static/"+page+".html")
 }
+
 func saveImageHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := getUserIDFromContext(r.Context())
 	if err != nil {
 		http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
+		return
+	}
+	//checknut ci uz prekrocil 3 obrazky
+	var imageCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM images WHERE user_id = ?", id).Scan(&imageCount)
+	if err != nil {
+		http.Error(w, "Failed to check image count", http.StatusInternalServerError)
+		return
+	}
+
+	if imageCount >= 3 {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"message": "User has exceeded the maximum allowed images"}`))
 		return
 	}
 
@@ -234,23 +247,24 @@ func saveImageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to parse form data", http.StatusBadRequest)
 		return
 	}
+
 	file, fileHeader, err := r.FormFile("image")
 	if err != nil {
-		http.Error(w, "Failed to get file ", http.StatusBadRequest)
+		http.Error(w, "Failed to get file", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 
 	filtersJSON := r.FormValue("filters")
 	if filtersJSON == "" {
-		http.Error(w, "Missing filters ", http.StatusBadRequest)
+		http.Error(w, "Missing filters", http.StatusBadRequest)
 		return
 	}
 
 	var filters map[string]int
 	err = json.Unmarshal([]byte(filtersJSON), &filters)
 	if err != nil {
-		http.Error(w, "Failed to parse filters ", http.StatusBadRequest)
+		http.Error(w, "Failed to parse filters", http.StatusBadRequest)
 		return
 	}
 
@@ -301,10 +315,181 @@ func saveImageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to save filter data in database", http.StatusInternalServerError)
 		return
 	}
-
+	response := map[string]interface{}{
+		"message": "Image and filters uploaded successfully",
+		"imgId":   imageID,
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(`[{"message": "Image and filters uploaded successfully"}]`))
+	json.NewEncoder(w).Encode(response)
+}
+func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	}
+
+	userID, err := getUserIDFromContext(r.Context())
+	if err != nil {
+		http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
+		return
+	}
+	imageId := r.FormValue("imageId")
+	if imageId == "" {
+		http.Error(w, "Missing Id", http.StatusBadRequest)
+		return
+	}
+
+	var filepath string
+	//Overit uzivatela
+	err = db.QueryRow("SELECT filepath FROM images WHERE id = ? AND user_id = ?", imageId, userID).Scan(&filepath)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Image not found or you are not authorized to delete this image", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to retrieve image data", http.StatusInternalServerError)
+		}
+
+	}
+	//ziskat filtre z requestu
+	filtersJSON := r.FormValue("filters")
+	if filtersJSON == "" {
+		http.Error(w, "Missing filters", http.StatusBadRequest)
+		return
+	}
+
+	var filters map[string]int
+	err = json.Unmarshal([]byte(filtersJSON), &filters)
+	if err != nil {
+		http.Error(w, "Failed to parse filters", http.StatusBadRequest)
+		return
+	}
+	//updatnut zaznam
+	_, err = db.Exec("update image_filters SET hue = ?, contrast = ?, vibrance = ?, sepia = ?, vignette = ?, brightness = ? where image_id = ?;",
+		filters["hue"],
+		filters["contrast"],
+		filters["vibrance"],
+		filters["sepia"],
+		filters["vignette"],
+		filters["brightness"],
+		imageId,
+	)
+	if err != nil {
+		http.Error(w, "Failed to update data", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "Filters Updated"}`))
+
+}
+
+type Img struct {
+	Id         int    `json:"id"`
+	Filename   string `json:"filename"`
+	Filepath   string `json:"filepath"`
+	Created    string `json:"created_at"`
+	User       int    `json:"user_id"`
+	FilterId   int    `json:"filter_id"`
+	ImageId    int    `json:"image_id"`
+	Hue        int    `json:"hue"`
+	Contrast   int    `json:"contrast"`
+	Vibrance   int    `json:"vibrance"`
+	Sepia      int    `json:"sepia"`
+	Vignette   int    `json:"vignette"`
+	Brightness int    `json:"brightness"`
+}
+
+func getImages(w http.ResponseWriter, r *http.Request) {
+	id, err := getUserIDFromContext(r.Context())
+	if err != nil {
+		http.Error(w, "Unable to get user id", http.StatusInternalServerError)
+		return
+	}
+
+	res, err := db.Query("select * from images join image_filters f on images.id = f.image_id WHERE user_id = ?", id)
+	if err != nil {
+		http.Error(w, "Failed to retrieve images", http.StatusInternalServerError)
+		return
+	}
+	defer res.Close()
+
+	var images []Img
+	for res.Next() {
+		var img Img
+		err = res.Scan(&img.Id, &img.Filename, &img.Filepath, &img.Created, &img.User, &img.FilterId,
+			&img.ImageId, &img.Hue, &img.Contrast, &img.Vibrance, &img.Sepia, &img.Vignette, &img.Brightness)
+		if err != nil {
+			http.Error(w, "Error scanning database result", http.StatusInternalServerError)
+			return
+		}
+		images = append(images, img)
+	}
+
+	if len(images) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No images found"})
+		return
+	}
+
+	imgJson, err := json.Marshal(images)
+	if err != nil {
+		http.Error(w, "Error converting images to JSON", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(imgJson)
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+	}
+}
+func deleteImageHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	}
+	vars := mux.Vars(r)
+	imageID := vars["id"]
+
+	userID, err := getUserIDFromContext(r.Context())
+	if err != nil {
+		http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
+		return
+	}
+
+	var filepath string
+	err = db.QueryRow("SELECT filepath FROM images WHERE id = ? AND user_id = ?", imageID, userID).Scan(&filepath)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Image not found or you are not authorized to delete this image", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to retrieve image data", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	err = os.Remove(filepath)
+	if err != nil {
+		http.Error(w, "Failed to delete image file", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = db.Exec("DELETE FROM images WHERE id = ? AND user_id = ?", imageID, userID)
+	if err != nil {
+		http.Error(w, "Failed to delete image metadata from the database", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = db.Exec("DELETE FROM image_filters WHERE image_id = ?", imageID)
+	if err != nil {
+		http.Error(w, "Failed to delete image filters from the database", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "Image deleted successfully"}`))
 }
 
 func main() {
@@ -320,8 +505,11 @@ func main() {
 	protected.HandleFunc("/hello", serveHTML).Methods("GET")
 	protected.HandleFunc("/editor", serveHTML).Methods("GET")
 	protected.HandleFunc("/upload", saveImageHandler).Methods("POST")
+	protected.HandleFunc("/getimages", getImages).Methods("POST")
+	protected.HandleFunc("/delete/{id}", deleteImageHandler).Methods("DELETE")
+	protected.HandleFunc("/update", updateFiltersHandler).Methods("POST")
 
-	r.Handle("/images", http.FileServer(http.Dir("images")))
+	r.PathPrefix("/images/").Handler(http.StripPrefix("/images/", http.FileServer(http.Dir("images"))))
 	r.HandleFunc("/login", serveHTML).Methods("GET")
 	r.HandleFunc("/register", serveHTML).Methods("GET")
 	r.HandleFunc("/login", loginHandler).Methods("POST")

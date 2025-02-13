@@ -4,7 +4,7 @@ body {
     margin: 0;
     text-align: center;
     height: 100vh;
-    overflow: hidden;
+    overflow-x: hidden;
     color: white;
     background-color: rgb(17, 17, 17);
 }
@@ -37,6 +37,7 @@ main {
     align-items: center;
     justify-content: center;
     position: relative;
+    border-right: 2px solid white;
 }
 
 canvas {
@@ -108,4 +109,37 @@ input[type="file"] {
 
 .btn-success {
     background-color: rgb(76, 132, 76);
+}
+
+.images-container {
+    width: 100%;
+    display: flex;
+
+    justify-content: center;
+
+}
+
+.images-container>img {
+    height: 200px;
+}
+
+#popup-notification {
+    position: fixed;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    bottom: 10%;
+    right: 10%;
+}
+
+#popup-notification.success {
+    background-color: green;
+}
+
+#popup-notification.error {
+    background-color: #f44336;
 }

@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editor</title>
-    <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/camanjs/4.1.2/caman.full.min.js"></script>
+    <script src="../static/js/jquery-3.7.1.min.js"></script>
+    <script src="../static/js/caman.full.min.js"></script>
     <script src="../static/js/editor.js"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 
@@ -16,7 +16,6 @@
     <nav>
         <h1>Image Editor</h1>
         <button class="btn btn-warning" hx-post="/logout" hx-trigger=" click">Logout</button>
-        <button id="savetocloudbtn">Save to cloud</button>
     </nav>
     <main>
         <div class="editor">
@@ -48,14 +47,18 @@
 
                 </div>
                 <div class="action-buttons">
-                    <!-- <label for="uploadnewbtn" class="btn" id="uploadshow">Add new image
+                    <label for="uploadnewbtn" class="btn" id="uploadshow">Add new image
                         <input type="file" id="uploadnewbtn" accept="image/*">
-                    </label> -->
+                    </label>
                     <button id="resetbtn" class="btn btn-warning">Reset Filters</button>
                     <button id="savebtn" class="btn btn-success">Save Image</button>
+                    <button id="savetocloudbtn" class="btn">Save to cloud</button>
                 </div>
             </div>
         </div>
+        <h2>Cloud Images</h2>
+        <div id="images-container" class="images-container"></div>
+        <div id="popup-notification" class=""></div>
     </main>
 </body>
 
