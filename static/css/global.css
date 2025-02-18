@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Red+Hat+Display:ital,wght@0,300..900;1,300..900&display=swap');
+
+:root {
+
+    --color-warning: #a34343;
+    --color-success: #4c844c;
+    --color-background: #0d326c;
+    --color-dark: #393b7d;
+    --color-accent: #a04f9f;
+    --color-accent-dark: #7e4997;
+    --color-secondary: #E7E6F7;
+    --color-secondary-rgba: 231, 230, 247;
+    --font: "Plus Jakarta Sans",
+        serif;
+    ;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--font);
+    font-optical-sizing: auto;
+    font-style: normal;
+}
+
+.lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100%;
+    z-index: -1;
+    background: url('background/lines.svg') repeat-y center top;
+    background-size: cover;
+    background-repeat: repeat-y;
+    opacity: 0.2;
+}
+
+
+
+.btn {
+    background-color: var(--color-accent);
+    color: white;
+    border: none;
+    padding: 0.7rem;
+    border-radius: 100rem;
+    cursor: pointer;
+    text-align: center;
+    vertical-align: center;
+    transition: background-color 100ms ease-out;
+}
+
+.btn:hover {
+    background-color: var(--color-accent-dark);
+}
+
+.btn-warning {
+    background-color: var(--color-warning);
+}
+
+.btn-success {
+    background-color: var(--color-success);
+}
+
+a {
+    color: var(--color-secondary);
+}
+
+a:visited {
+    color: var(--color-secondary);
+}
+
+#message {
+    color: var(--color-warning);
+}

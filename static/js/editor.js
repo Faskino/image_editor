@@ -1,3 +1,12 @@
+//https://codepen.io/tutsplus/pen/MWZwrGJ
+const carousel = document.querySelector(".sliders");
+const slide = document.querySelector(".slider-group");
+
+function handleCarouselMove(positive = true) {
+    const slideWidth = slide.clientWidth;
+    carousel.scrollLeft = positive ? carousel.scrollLeft + slideWidth : carousel.scrollLeft - slideWidth;
+}
+
 function showPopup(message, type = "success", duration = 3000) {
     let popup = document.getElementById("popup-notification");
 
@@ -15,24 +24,39 @@ function showPopup(message, type = "success", duration = 3000) {
 
     setTimeout(() => {
         popup.style.opacity = "0";
-        setTimeout(() => { popup.style.display = "none"; }, 300);
+        setTimeout(() => { popup.style.display = "none"; }, 1000);
     }, duration);
+}
+function getFilterValues() {
+    return {
+        contrast: parseInt($('#contrast').val()),
+        vibrance: parseInt($('#vibrance').val()),
+        sepia: parseInt($('#sepia').val()),
+        vignette: parseInt($('#vignette').val()),
+        brightness: parseInt($('#brightness').val()),
+        saturation: parseInt($('#saturation').val()),
+        exposure: parseInt($('#exposure').val()),
+        noise: parseInt($('#noise').val()),
+        sharpen: parseInt($('#sharpen').val()),
+
+    };
 }
 
 function getFromCloud() {
     $.post('/protected/getimages')
         .done(function (data) {
-            console.log('Load success:', data);
-            localStorage.setItem("cloudImages", JSON.stringify(data));
-            displayImages(data, true);
+            if (data.message === "No images found") {
+                displayImages(null, false);
+
+            } else {
+                console.log('Load success:', data.data);
+                localStorage.setItem("cloudImages", JSON.stringify(data.data));
+                displayImages(data.data, true);
+            }
         })
         .fail(function (jqXHR) {
-            if (jqXHR.status === 404) {
-                displayImages(null, false);
-            } else {
-                console.error('Loading error:', jqXHR.responseText);
-                showPopup('Failed to get images.', 'success');
-            }
+            console.error('Loading error:', jqXHR.responseText);
+            showPopup('Failed to get images.', 'success');
         });
 
 }
@@ -48,7 +72,6 @@ function displayImages(images, imagesFound) {
             imgElement.src = "/" + img.filepath;
             imgElement.alt = img.filename;
             imgElement.title = `Created: ${img.created_at}`;
-            imgElement.height = '200';
             imgElement.id = "imgElement";
 
             const editButton = document.createElement('button');
@@ -56,19 +79,19 @@ function displayImages(images, imagesFound) {
             editButton.id = 'edit-button';
             editButton.setAttribute('data-image-id', img.id);
             editButton.setAttribute('data-image-filename', img.filename);
+            editButton.classList.add("edit", "btn", "btn-success");
 
             const deleteButton = document.createElement('button');
             deleteButton.textContent = 'Delete';
             deleteButton.id = 'delete-button';
             deleteButton.setAttribute('data-image-id', img.id);
+            deleteButton.classList.add("delete", "btn", "btn-warning");
 
-            const dateLabel = document.createElement('p');
-            dateLabel.textContent = `Last edited at: ${img.created_at}`;
+
 
             imgWrapper.appendChild(imgElement);
             imgWrapper.appendChild(editButton);
             imgWrapper.appendChild(deleteButton);
-            imgWrapper.appendChild(dateLabel);
 
             container.appendChild(imgWrapper);
         });
@@ -89,24 +112,14 @@ $(function () {
     var img = null;
     var imageLoaded = false;
     var loadedFromCloud = false;
-
+    //Resizing
     function resizeImage(img, maxWidth = 1920, maxHeight = 1080) {
-        const widthRatio = maxWidth / img.width;
-        const heightRatio = maxHeight / img.height;
-        const ratio = Math.min(widthRatio, heightRatio);
-        const newWidth = img.width * ratio;
-        const newHeight = img.height * ratio;
-
-        const canvasTemp = document.createElement('canvas');
-        const ctxTemp = canvasTemp.getContext('2d');
-
-        canvasTemp.width = newWidth;
-        canvasTemp.height = newHeight;
-
-        ctxTemp.drawImage(img, 0, 0, newWidth, newHeight);
-
-        return canvasTemp;
+        const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     }
+
     function loadImage(file) {
         revertFilters();
 
@@ -135,7 +148,6 @@ $(function () {
                 img.src = event.target.result;
                 originalFile = img;
                 console.log("Loading from File:", file.name);
-                console.log(img);
             };
             loadedFromCloud = false;
             reader.readAsDataURL(file);
@@ -145,11 +157,12 @@ $(function () {
     }
 
     function drawImageOnCanvas(img) {
-        const resizedCanvas = resizeImage(img);
-        canvas.width = resizedCanvas.width;
-        canvas.height = resizedCanvas.height;
+        // const resizedCanvas = 
+        resizeImage(img);
+        // canvas.width = resizedCanvas.width;
+        // canvas.height = resizedCanvas.height;
 
-        ctx.drawImage(resizedCanvas, 0, 0);
+        // ctx.drawImage(resizedCanvas, 0, 0);
 
         Caman("#canvas", img, function () {
             this.reloadCanvasData();
@@ -190,10 +203,10 @@ $(function () {
         console.log(imgId);
         console.log(filters.vibrance);
         cloudImgId = imgId;
-        loadImage(`/images/${imgFilename}`);
         setTimeout(() => {
-            setSliders(filters.hue, filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness);
+            setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
         }, 100)
+        loadImage(`/images/${imgFilename}`);
 
     });
 
@@ -209,7 +222,7 @@ $(function () {
                 getFromCloud();
             },
             error: function (jqXHR) {
-                console.error('DELETE error:', jqXHR.responseText);
+                console.error('DELETE error:', jqXHR.status);
                 showPopup('DELETE FAILED', 'error');
             }
         });
@@ -223,24 +236,8 @@ $(function () {
         revertFilters();
     });
 
-    $('#noisebtn').on('click', function (e) {
-        if (imageLoaded) {
-            Caman('#canvas', img, function () {
-                this.noise(10).render();
-            });
-        }
-    });
 
-    $('#hdrbtn').on('click', function (e) {
-        if (imageLoaded) {
-            Caman('#canvas', img, function () {
-                this.contrast(10);
-                this.contrast(10);
-                this.jarques();
-                this.render();
-            });
-        }
-    });
+
 
     $('#savebtn').on('click', function () {
         if (imageLoaded) {
@@ -260,14 +257,7 @@ $(function () {
 
     $('#savetocloudbtn').on('click', function () {
         if (imageLoaded) {
-            const filters = {
-                hue: parseInt($('#hue').val()),
-                contrast: parseInt($('#contrast').val()),
-                vibrance: parseInt($('#vibrance').val()),
-                sepia: parseInt($('#sepia').val()),
-                vignette: parseInt($('#vignette').val()),
-                brightness: parseInt($('#brightness').val())
-            };
+            const filters = getFilterValues()
             if (loadedFromCloud) {
                 if (cloudImgId) {
                     console.log("image update");
@@ -278,7 +268,7 @@ $(function () {
                     })
                         .done(response => {
                             console.log("Update successful:", response);
-                            showPopup("Filters updaed successfully");
+                            showPopup("Filters updated successfully");
                             getFromCloud();
                         })
                         .fail(error => {
@@ -296,7 +286,7 @@ $(function () {
                         const formData = new FormData();
                         formData.append('image', blob, 'original-image.png');
                         formData.append('filters', JSON.stringify(filters));
-
+                        console.log(formData);
                         $.ajax({
                             url: '/protected/upload',
                             type: 'POST',
@@ -309,16 +299,16 @@ $(function () {
                                 } else {
                                     console.log('Upload success:', data);
                                     showPopup('Image and filters uploaded successfully!', 'success');
-                                    setSliders(filters.hue, filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness);
-                                    applyFilters();
-                                    console.log(filters.hue);
                                     getFromCloud();
                                     loadedFromCloud = true;
-                                    cloudImgId = data.imgId;
+                                    cloudImgId = data.data.imgId;
                                 }
+                                setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
+                                applyFilters();
+
                             },
                             error: function (jqXHR) {
-                                console.error('Upload error:', jqXHR.responseText);
+                                console.error('Upload error:', jqXHR.status);
                                 showPopup('Failed to upload image and filters.', 'error');
                             }
                         });
@@ -344,16 +334,22 @@ $(function () {
             console.log("No image loaded to revert.");
         }
     }
+    let filterTimeout;
+    $('input[type=range]').change(() => {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(applyFilters, 100);
+    });
 
-    $('input[type=range]').change(applyFilters);
-
-    function setSliders(hue, contrast, vibrance, sepia, vignette, brightness) {
-        $('#hue').val(hue);
+    function setSliders(contrast, vibrance, sepia, vignette, brightness, saturation, exposure, noise, sharpen) {
         $('#contrast').val(contrast);
         $('#vibrance').val(vibrance);
         $('#sepia').val(sepia);
         $('#vignette').val(vignette);
         $('#brightness').val(brightness);
+        $('#saturation').val(saturation)
+        $('#exposure').val(exposure)
+        $('#noise').val(noise)
+        $('#sharpen').val(sharpen)
         applyFilters();
     }
     function applyFilters() {
@@ -363,21 +359,19 @@ $(function () {
             return;
         }
 
-        hue = parseInt($('#hue').val());
-        contrast = parseInt($('#contrast').val());
-        vibrance = parseInt($('#vibrance').val());
-        sepia = parseInt($('#sepia').val());
-        vignette = parseInt($('#vignette').val());
-        brightness = parseInt($('#brightness').val());
 
+        const filters = getFilterValues()
         Caman('#canvas', img, function () {
             this.revert(false);
-            this.hue(hue)
-                .contrast(contrast)
-                .vibrance(vibrance)
-                .sepia(sepia)
-                .vignette(vignette + '%')
-                .brightness(brightness)
+            this.contrast(filters.contrast)
+                .vibrance(filters.vibrance)
+                .sepia(filters.sepia)
+                .vignette(filters.vignette + '%')
+                .brightness(filters.brightness)
+                .saturation(filters.saturation)
+                .exposure(filters.exposure)
+                .noise(filters.noise)
+                .sharpen(filters.sharpen)
                 .render();
         });
     }

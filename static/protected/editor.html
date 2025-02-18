@@ -7,12 +7,18 @@
     <title>Editor</title>
     <script src="../static/js/jquery-3.7.1.min.js"></script>
     <script src="../static/js/caman.full.min.js"></script>
-    <script src="../static/js/editor.js"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script defer src="../static/js/editor.js"></script>
 
 </head>
 
+
 <body>
+    <div class="lines">
+
+    </div>
+    <div class="star-container"></div>
+    <div class="twinkle"></div>
     <nav>
         <h1>Image Editor</h1>
         <button class="btn btn-warning" hx-post="/logout" hx-trigger=" click">Logout</button>
@@ -27,25 +33,61 @@
 
             </div>
             <div class="controls">
-                <div class="sliders">
-                    <label for="hue">Hue</label>
-                    <input id="hue" name="hue" type="range" min="0" max="300" value="0">
-                    <label for="contrast">Contrast</label>
-                    <input id="contrast" name="contrast" type="range" min="-20" max="20" value="0">
-                    <label for="contrast">Brightness</label>
-                    <input id="brightness" name="brightness" type="range" min="-20" max="20" value="0">
-                    <label for="vibrance">Vibrance</label>
-                    <input id="vibrance" name="vibrance" type="range" min="0" max="400" value="0">
-                    <label for="sepia">Sepia</label>
-                    <input id="sepia" name="sepia" type="range" min="0" max="100" value="0">
-                    <label for="contrast">Vignette</label>
-                    <input id="vignette" name="vignette" type="range" min="0" max="100" value="0">
-                </div>
-                <div class="filters">
-                    <button id="noisebtn" class="btn btn-primary">Noise</button>
-                    <button id="hdrbtn" class="btn btn-primary">HDR Effect</button>
+                <div class="carousel">
+                    <button class="carousel-arrow carousel-arrow--prev" onclick="handleCarouselMove(false)">
+                        &#8249;
+                    </button>
 
-                </div>
+                    <button class="carousel-arrow carousel-arrow--next" onclick="handleCarouselMove()">
+                        &#8250;
+                    </button>
+                    <div class="sliders">
+                        <div class="slider-group">
+                            <label for="contrast">Contrast</label>
+                            <input id="contrast" name="contrast" type="range" min="-20" max="20" value="0">
+                        </div>
+                        <div class="slider-group">
+                            <label for="contrast">Brightness</label>
+                            <input id="brightness" name="brightness" type="range" min="-20" max="20" value="0">
+                        </div>
+                        <div class="slider-group">
+                            <label for="vibrance">Vibrance</label>
+                            <input id="vibrance" name="vibrance" type="range" min="0" max="400" value="0">
+                        </div>
+                        <div class="slider-group">
+                            <label for="sepia">Sepia</label>
+                            <input id="sepia" name="sepia" type="range" min="0" max="100" value="0">
+                        </div>
+                        <div class="slider-group">
+                            <label for="contrast">Vignette</label>
+                            <input id="vignette" name="vignette" type="range" min="0" max="100" value="0">
+                        </div>
+                        <!-- Saturation -->
+                        <div class="slider-group">
+                            <label for="saturation">Saturation:</label>
+                            <input type="range" id="saturation" min="-100" max="100" value="0">
+                        </div>
+
+                        <!-- Exposure -->
+                        <div class="slider-group">
+                            <label for="exposure">Exposure:</label>
+                            <input type="range" id="exposure" min="-100" max="100" value="0">
+                        </div>
+
+
+                        <!-- Noise -->
+                        <div class="slider-group">
+                            <label for="noise">Noise:</label>
+                            <input type="range" id="noise" min="0" max="100" value="0">
+                        </div>
+
+                        <!-- Sharpen -->
+                        <div class="slider-group">
+                            <label for="sharpen">Sharpen:</label>
+                            <input type="range" id="sharpen" min="0" max="100" value="0">
+                        </div>
+                    </div>
+                </div class="carousel">
                 <div class="action-buttons">
                     <label for="uploadnewbtn" class="btn" id="uploadshow">Add new image
                         <input type="file" id="uploadnewbtn" accept="image/*">
@@ -61,7 +103,7 @@
         <div id="popup-notification" class=""></div>
     </main>
 </body>
-
+<link rel="stylesheet" href="../static/css/global.css">
 <link rel="stylesheet" href="../static/css/editor.css">
 
 </html>

@@ -1,19 +1,45 @@
+.sliders::-webkit-scrollbar {
+    width: 0;
+}
+
+.sliders::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sliders::-webkit-scrollbar-thumb {
+    background: transparent;
+    border: none;
+}
+
+.sliders {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    /* Hides scrollbar in Firefox */
+    scrollbar-color: transparent transparent;
+    /* Hides thumb and track in Firefox */
+}
+
+
 body {
-    box-sizing: border-box;
     padding: 0;
     margin: 0;
     text-align: center;
-    height: 100vh;
     overflow-x: hidden;
     color: white;
-    background-color: rgb(17, 17, 17);
+    height: 100%;
+    background-image: linear-gradient(to right bottom, #0d326c, #393b7d, #5c428b, #7e4997, #a04f9f);
+    background-size: cover;
+    background-repeat: none;
+    background-attachment: fixed;
+    position: relative;
 }
 
 nav {
     display: flex;
-    height: 3rem;
+    height: 5rem;
     justify-content: space-between;
-    padding: 1rem 5rem;
+    align-items: center;
+    padding: 1rem 10rem;
 }
 
 main {
@@ -21,14 +47,106 @@ main {
     flex-direction: column;
     align-items: center;
     gap: 1rem;
-    padding: 0 2rem;
     height: 100%;
+}
+
+@media only screen and (max-width:800px) {
+    nav {
+        padding: 1rem 2rem;
+    }
+}
+
+.slider-group {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, 1fr);
+    gap: 0.5rem;
+    justify-content: center;
+    position: relative;
+}
+
+.slider-group>output {
+    position: absolute;
+    top: 100%;
+    padding: 0;
+    margin: 0;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/*********** Baseline, reset styles ***********/
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    width: 100%;
+}
+
+
+/* Removes default focus */
+input[type="range"]:focus {
+    outline: none;
+}
+
+/******** Chrome, Safari, Opera and Edge Chromium styles ********/
+/* slider track */
+input[type="range"]::-webkit-slider-runnable-track {
+    background-color: var(--color-secondary);
+    border-radius: 1rem;
+    height: 0.3rem;
+}
+
+/* slider thumb */
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    /* Override default look */
+    appearance: none;
+    /* Centers thumb on the track */
+    margin-top: -10px;
+    background-color: var(--color-accent);
+    border-radius: 1rem;
+    height: 1.5rem;
+    width: 1.5rem;
+}
+
+
+
+/*********** Firefox styles ***********/
+/* slider track */
+input[type="range"]::-moz-range-track {
+    background-color: var(--color-secondary);
+    border-radius: 1rem;
+    height: 0.3rem;
+}
+
+/* slider thumb */
+input[type="range"]::-moz-range-thumb {
+    border: none;
+    /*Removes extra border that FF applies*/
+    background-color: var(--color-accent);
+    border-radius: 1rem;
+    height: 1.5rem;
+    width: 1.5rem;
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+    outline: 3px solid #808080;
+    outline-offset: 0.125rem;
+}
+
+input[type="range"]:focus::-moz-range-thumb {
+    outline: 3px solid #808080;
+    outline-offset: 0.125rem;
 }
 
 .editor {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 7fr 3fr;
     gap: 2rem;
+    align-items: center;
+    height: 80vh;
+    max-height: 80vh;
 }
 
 .canvas {
@@ -37,15 +155,19 @@ main {
     align-items: center;
     justify-content: center;
     position: relative;
-    border-right: 2px solid white;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    background: rgba(var(--color-secondary-rgba), 0.2);
+    border-radius: 1rem;
+    padding: 1rem;
+    overflow: hidden;
 }
 
 canvas {
-    max-height: 80vh;
-    background-color: rgb(33, 33, 33);
     width: auto;
     max-width: 100%;
-    height: 100%;
+    max-height: 100%;
 }
 
 input[type="file"] {
@@ -54,8 +176,6 @@ input[type="file"] {
 
 .uploadLabel {
     cursor: pointer;
-    padding: 1rem;
-    background-color: rgb(28, 28, 28);
     position: absolute;
     top: 50%;
     left: 50%;
@@ -78,25 +198,75 @@ input[type="file"] {
 .sliders {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(auto, 1fr);
+    gap: 1.5rem;
 }
 
-.filters {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(auto, 1fr);
-    gap: 0.5rem;
-    justify-content: center;
-    text-align: center;
-    align-items: center;
+.carousel {
+    position: relative;
 }
+
+.carousel-arrow {
+    display: none;
+    position: absolute;
+    z-index: 100;
+    border: none;
+    background: var(--color-accent);
+    top: 50%;
+    transform: translateY(-50%);
+    height: 3rem;
+    aspect-ratio: 1/1;
+    border-radius: 100%;
+    cursor: pointer;
+}
+
+.carousel-arrow--prev {
+    right: 110%;
+}
+
+.carousel-arrow--next {
+    left: 110%;
+}
+
+@media only screen and (max-width:800px) {
+    .editor {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sliders {
+        width: 200px;
+        height: 3rem;
+        display: flex;
+        overflow-x: hidden;
+        scroll-behavior: smooth;
+        scroll-snap-type: x mandatory;
+    }
+
+    .slider-group {
+        scroll-snap-align: center;
+        flex: 0 0 100%;
+        gap: 0;
+        height: 100%;
+    }
+
+
+    .carousel-arrow {
+        display: initial;
+    }
+
+}
+
 
 .btn {
-    background-color: rgb(33, 33, 33);
+    background-color: var(--color-accent);
     color: white;
     border: none;
     padding: 0.7rem;
     border-radius: 100rem;
     cursor: pointer;
+    text-align: center;
+    vertical-align: center;
 }
 
 .btn:hover {
@@ -104,24 +274,76 @@ input[type="file"] {
 }
 
 .btn-warning {
-    background-color: rgb(163, 67, 67);
+    background-color: var(--color-warning);
 }
 
 .btn-success {
-    background-color: rgb(76, 132, 76);
+    background-color: var(--color-success);
 }
 
 .images-container {
     width: 100%;
-    display: flex;
-
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     justify-content: center;
+    gap: 2rem;
+    padding: 0 5rem;
+}
+
+.img-wrapper {
+    display: grid;
+    grid-template-rows: 3fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+        "a a"
+        "c d";
+    justify-items: center;
+    align-items: center;
+    background-color: var(--color-accent-dark);
+    border-radius: 1rem;
+    gap: 1rem;
+    aspect-ratio: 3/4;
+    padding: 1rem;
+    width: 100%;
+    height: 100%;
 
 }
 
-.images-container>img {
-    height: 200px;
+.img-wrapper>img {
+    grid-area: a;
+    border-radius: 0.5rem;
+    object-fit: contain;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
 }
+
+
+.img-wrapper>button {
+    border-radius: 100rem;
+    width: 100%;
+    border: none;
+}
+
+.img-wrapper>.edit {
+    left: 0;
+    grid-area: c;
+}
+
+.img-wrapper>.delete {
+    right: 0;
+    grid-area: d;
+}
+
+@media only screen and (max-width: 800px) {
+    .images-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: auto;
+    }
+}
+
 
 #popup-notification {
     position: fixed;
@@ -132,14 +354,15 @@ input[type="file"] {
     z-index: 1000;
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
-    bottom: 10%;
-    right: 10%;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 #popup-notification.success {
-    background-color: green;
+    background-color: var(--color-success);
 }
 
 #popup-notification.error {
-    background-color: #f44336;
+    background-color: var(--color-warning);
 }

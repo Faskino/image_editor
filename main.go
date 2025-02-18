@@ -13,16 +13,55 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
 
+type Img struct {
+	Id         int    `json:"id"`
+	Filename   string `json:"filename"`
+	Filepath   string `json:"filepath"`
+	Created    string `json:"created_at"`
+	User       int    `json:"user_id"`
+	FilterId   int    `json:"filter_id"`
+	ImageId    int    `json:"image_id"`
+	Contrast   int    `json:"contrast"`
+	Vibrance   int    `json:"vibrance"`
+	Sepia      int    `json:"sepia"`
+	Vignette   int    `json:"vignette"`
+	Brightness int    `json:"brightness"`
+	Saturation int    `json:"saturation"`
+	Exposure   int    `json:"exposure`
+	Noise      int    `json:"noise"`
+	Sharpen    int    `json:"sharpen"`
+}
+type JsonResponse struct {
+	Message string      `json:"message"`
+	Status  int         `json:"status"`
+	Data    interface{} `json:"data,omitempty"` // Optional field for extra response data
+}
+
+func JSONResponse(w http.ResponseWriter, message string, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	response := JsonResponse{
+		Message: message,
+		Status:  status,
+		Data:    data,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
 var db *sql.DB
 
 func initDB() {
 	var err error
+	// db, err = sql.Open("mysql", "root:root@tcp(host.docker.internal:3306)/img_editor")
 	db, err = sql.Open("mysql", "root:root@tcp(localhost:3306)/img_editor")
 	if err != nil {
 		log.Fatalf("Could not connect to database: %v", err)
@@ -83,13 +122,20 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err = db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
 	if err != nil {
-		http.Error(w, "Could not create user", http.StatusInternalServerError)
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			fmt.Fprintf(w, `<div>User already exists</div>`)
+			return
+		}
+		JSONResponse(w, "Could not create user", http.StatusInternalServerError, nil)
+
+		log.Println(err)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User registered successfully"))
 }
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -121,6 +167,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		"id":       userID,
 		"exp":      time.Now().Add(24 * time.Hour).Unix(),
 	})
+
 	tokenString, err := token.SignedString([]byte("ac17c7ae33f56f6aafc550dce6f5b98134be4d96903c8fd5538a01ec4d2bb5e6"))
 	if err != nil {
 		http.Error(w, "Could not create token", http.StatusInternalServerError)
@@ -212,11 +259,10 @@ func serveHTML(w http.ResponseWriter, r *http.Request) {
 	if page == "" {
 		page = "index"
 	}
-	userID, err := getUserIDFromContext(r.Context())
+	_, err := getUserIDFromContext(r.Context())
 	if err != nil {
 
 	}
-	log.Println(userID)
 	http.ServeFile(w, r, "static/"+page+".html")
 }
 
@@ -235,8 +281,10 @@ func saveImageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if imageCount >= 3 {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"message": "User has exceeded the maximum allowed images"}`))
+		JSONResponse(w, "User has exceeded the maximum allowed images", http.StatusOK, nil)
+		// w.Header().Set("Content-Type", "application/json")
+		// w.Write([]byte(`{"message": "User has exceeded the maximum allowed images"}`))
+		log.Println("yes")
 		return
 	}
 
@@ -254,7 +302,6 @@ func saveImageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-
 	filtersJSON := r.FormValue("filters")
 	if filtersJSON == "" {
 		http.Error(w, "Missing filters", http.StatusBadRequest)
@@ -302,26 +349,23 @@ func saveImageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO image_filters (image_id, hue, contrast, vibrance, sepia, vignette, brightness) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	_, err = db.Exec("INSERT INTO image_filters (image_id, contrast, vibrance, sepia, vignette, brightness, saturation, exposure, noise, sharpen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		imageID,
-		filters["hue"],
 		filters["contrast"],
 		filters["vibrance"],
 		filters["sepia"],
 		filters["vignette"],
 		filters["brightness"],
+		filters["saturation"],
+		filters["exposure"],
+		filters["noise"],
+		filters["sharpen"],
 	)
 	if err != nil {
 		http.Error(w, "Failed to save filter data in database", http.StatusInternalServerError)
 		return
 	}
-	response := map[string]interface{}{
-		"message": "Image and filters uploaded successfully",
-		"imgId":   imageID,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	JSONResponse(w, "Image and filters uploaded successfully", http.StatusCreated, map[string]int64{"imgId": imageID})
 }
 func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -364,39 +408,27 @@ func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//updatnut zaznam
-	_, err = db.Exec("update image_filters SET hue = ?, contrast = ?, vibrance = ?, sepia = ?, vignette = ?, brightness = ? where image_id = ?;",
-		filters["hue"],
+	_, err = db.Exec("update image_filters SET , contrast = ?, vibrance = ?, sepia = ?, vignette = ?, brightness = ?, saturation = ?, exposure = ?, noise = ?, sharpen = ? where image_id = ?;",
 		filters["contrast"],
 		filters["vibrance"],
 		filters["sepia"],
 		filters["vignette"],
 		filters["brightness"],
+		filters["saturation"],
+		filters["exposure"],
+		filters["noise"],
+		filters["sharpen"],
 		imageId,
 	)
 	if err != nil {
 		http.Error(w, "Failed to update data", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Filters Updated"}`))
+	JSONResponse(w, "Filters Updated", http.StatusOK, nil)
+	// w.Header().Set("Content-Type", "application/json")
+	// w.WriteHeader(http.StatusOK)
+	// w.Write([]byte(`{"message": "Filters Updated"}`))
 
-}
-
-type Img struct {
-	Id         int    `json:"id"`
-	Filename   string `json:"filename"`
-	Filepath   string `json:"filepath"`
-	Created    string `json:"created_at"`
-	User       int    `json:"user_id"`
-	FilterId   int    `json:"filter_id"`
-	ImageId    int    `json:"image_id"`
-	Hue        int    `json:"hue"`
-	Contrast   int    `json:"contrast"`
-	Vibrance   int    `json:"vibrance"`
-	Sepia      int    `json:"sepia"`
-	Vignette   int    `json:"vignette"`
-	Brightness int    `json:"brightness"`
 }
 
 func getImages(w http.ResponseWriter, r *http.Request) {
@@ -417,7 +449,8 @@ func getImages(w http.ResponseWriter, r *http.Request) {
 	for res.Next() {
 		var img Img
 		err = res.Scan(&img.Id, &img.Filename, &img.Filepath, &img.Created, &img.User, &img.FilterId,
-			&img.ImageId, &img.Hue, &img.Contrast, &img.Vibrance, &img.Sepia, &img.Vignette, &img.Brightness)
+			&img.ImageId, &img.Contrast, &img.Vibrance, &img.Sepia, &img.Vignette, &img.Brightness,
+			&img.Saturation, &img.Exposure, &img.Noise, &img.Sharpen)
 		if err != nil {
 			http.Error(w, "Error scanning database result", http.StatusInternalServerError)
 			return
@@ -426,24 +459,12 @@ func getImages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(images) == 0 {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"message": "No images found"})
+		JSONResponse(w, "No images found", http.StatusOK, nil)
 		return
 	}
 
-	imgJson, err := json.Marshal(images)
-	if err != nil {
-		http.Error(w, "Error converting images to JSON", http.StatusInternalServerError)
-		return
-	}
+	JSONResponse(w, "Images retrieved", http.StatusOK, images)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(imgJson)
-	if err != nil {
-		log.Printf("Error writing response: %v", err)
-	}
 }
 func deleteImageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
@@ -486,10 +507,8 @@ func deleteImageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to delete image filters from the database", http.StatusInternalServerError)
 		return
 	}
+	JSONResponse(w, "Image deleted successfully", http.StatusOK, nil)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Image deleted successfully"}`))
 }
 
 func main() {
