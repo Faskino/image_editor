@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -19,6 +20,12 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
+
+func EnableCORS(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins (for testing)
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+}
 
 type Img struct {
 	Id         int    `json:"id"`
@@ -34,7 +41,7 @@ type Img struct {
 	Vignette   int    `json:"vignette"`
 	Brightness int    `json:"brightness"`
 	Saturation int    `json:"saturation"`
-	Exposure   int    `json:"exposure`
+	Exposure   int    `json:"exposure"`
 	Noise      int    `json:"noise"`
 	Sharpen    int    `json:"sharpen"`
 }
@@ -46,6 +53,7 @@ type JsonResponse struct {
 
 func JSONResponse(w http.ResponseWriter, message string, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	log.Printf("Sending Response: Status=%d, Message=%s", status, message)
 	w.WriteHeader(status)
 
 	response := JsonResponse{
@@ -54,7 +62,12 @@ func JSONResponse(w http.ResponseWriter, message string, status int, data interf
 		Data:    data,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	err := json.NewEncoder(w).Encode(response)
+	if err != nil {
+		log.Println("Error encoding JSON response:", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+	log.Println(response)
 }
 
 var db *sql.DB
@@ -100,17 +113,32 @@ func (s *AuthService) ValidateToken(tokenString string) (bool, error) {
 	}
 	return true, nil
 }
+
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
+	// Parse the form data
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Could not parse form", http.StatusBadRequest)
+		return
+	}
+
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	if username == "" || password == "" {
-		http.Error(w, "Missing username or password", http.StatusBadRequest)
+	var usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+	if !usernameRegex.MatchString(username) {
+		fmt.Fprintf(w, "<div>Username cannot contain special characters</div>")
+		http.Error(w, "Invalid username. Only letters and numbers are allowed.", http.StatusBadRequest)
+		return
+	}
+
+	if len(password) < 8 {
+		fmt.Fprintf(w, "<div>Password must be at least 8 characters</div>")
+		http.Error(w, "Password must be at least 8 characters long.", http.StatusBadRequest)
 		return
 	}
 
@@ -123,15 +151,14 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
 	if err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			fmt.Fprintf(w, `<div>User already exists</div>`)
+			fmt.Fprintf(w, "<div>User already exists</div>")
 			return
 		}
-		JSONResponse(w, "Could not create user", http.StatusInternalServerError, nil)
-
+		http.Error(w, "Could not create user", http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
-
+	w.Header().Add("Hx-Redirect", "/login")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User registered successfully"))
 }
@@ -253,7 +280,16 @@ func authMiddleware(authService *AuthService) mux.MiddlewareFunc {
 		})
 	}
 }
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("session_token")
+	if cookie != nil {
+		http.Redirect(w, r, "/protected/editor", http.StatusSeeOther)
+		return
+	}
+	log.Println(err)
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 
+}
 func serveHTML(w http.ResponseWriter, r *http.Request) {
 	page := r.URL.Path[1:]
 	if page == "" {
@@ -267,6 +303,7 @@ func serveHTML(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveImageHandler(w http.ResponseWriter, r *http.Request) {
+	EnableCORS(w)
 	id, err := getUserIDFromContext(r.Context())
 	if err != nil {
 		http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
@@ -276,21 +313,20 @@ func saveImageHandler(w http.ResponseWriter, r *http.Request) {
 	var imageCount int
 	err = db.QueryRow("SELECT COUNT(*) FROM images WHERE user_id = ?", id).Scan(&imageCount)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "Failed to check image count", http.StatusInternalServerError)
 		return
 	}
 
+	log.Println("iuwfwnef")
 	if imageCount >= 3 {
 		JSONResponse(w, "User has exceeded the maximum allowed images", http.StatusOK, nil)
-		// w.Header().Set("Content-Type", "application/json")
-		// w.Write([]byte(`{"message": "User has exceeded the maximum allowed images"}`))
-		log.Println("yes")
+
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 20<<20)
 
-	r.Body = http.MaxBytesReader(w, r.Body, 10<<20)
-
-	err = r.ParseMultipartForm(10 << 20)
+	err = r.ParseMultipartForm(20 << 20)
 	if err != nil {
 		http.Error(w, "Unable to parse form data", http.StatusBadRequest)
 		return
@@ -388,7 +424,7 @@ func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow("SELECT filepath FROM images WHERE id = ? AND user_id = ?", imageId, userID).Scan(&filepath)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "Image not found or you are not authorized to delete this image", http.StatusNotFound)
+			http.Error(w, "Image not found or you are not authorized to update this image", http.StatusNotFound)
 		} else {
 			http.Error(w, "Failed to retrieve image data", http.StatusInternalServerError)
 		}
@@ -408,7 +444,7 @@ func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//updatnut zaznam
-	_, err = db.Exec("update image_filters SET , contrast = ?, vibrance = ?, sepia = ?, vignette = ?, brightness = ?, saturation = ?, exposure = ?, noise = ?, sharpen = ? where image_id = ?;",
+	_, err = db.Exec("UPDATE image_filters SET contrast = ?, vibrance = ?, sepia = ?, vignette = ?, brightness = ?, saturation = ?, exposure = ?, noise = ?, sharpen = ? where image_id = ?;",
 		filters["contrast"],
 		filters["vibrance"],
 		filters["sepia"],
@@ -534,7 +570,7 @@ func main() {
 	r.HandleFunc("/login", loginHandler).Methods("POST")
 	r.HandleFunc("/register", registerHandler).Methods("POST")
 	r.HandleFunc("/logout", logoutHandler).Methods("POST")
-	r.HandleFunc("/", serveHTML).Methods("GET")
+	r.HandleFunc("/", indexHandler).Methods("GET")
 
 	fmt.Println("Server started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", r))

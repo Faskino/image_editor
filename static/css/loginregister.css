@@ -54,3 +54,10 @@ form {
     margin-top: 0.5rem;
     height: 3.5rem !important;
 }
+
+#message>div {
+    border-radius: 0.2rem;
+    padding: 1rem;
+    background-color: var(--color-warning);
+    color: white;
+}

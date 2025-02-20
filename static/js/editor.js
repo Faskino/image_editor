@@ -1,4 +1,4 @@
-//https://codepen.io/tutsplus/pen/MWZwrGJ
+
 const carousel = document.querySelector(".sliders");
 const slide = document.querySelector(".slider-group");
 
@@ -18,7 +18,7 @@ function showPopup(message, type = "success", duration = 3000) {
 
     popup.textContent = message;
     popup.className = type;
-    popup.classList.add("popup")
+    popup.classList.add("popup");
     popup.style.display = "block";
     popup.style.opacity = "1";
 
@@ -27,6 +27,7 @@ function showPopup(message, type = "success", duration = 3000) {
         setTimeout(() => { popup.style.display = "none"; }, 1000);
     }, duration);
 }
+
 function getFilterValues() {
     return {
         contrast: parseInt($('#contrast').val()),
@@ -38,7 +39,6 @@ function getFilterValues() {
         exposure: parseInt($('#exposure').val()),
         noise: parseInt($('#noise').val()),
         sharpen: parseInt($('#sharpen').val()),
-
     };
 }
 
@@ -47,7 +47,6 @@ function getFromCloud() {
         .done(function (data) {
             if (data.message === "No images found") {
                 displayImages(null, false);
-
             } else {
                 console.log('Load success:', data.data);
                 localStorage.setItem("cloudImages", JSON.stringify(data.data));
@@ -58,16 +57,17 @@ function getFromCloud() {
             console.error('Loading error:', jqXHR.responseText);
             showPopup('Failed to get images.', 'success');
         });
-
 }
 
 function displayImages(images, imagesFound) {
     const container = document.getElementById('images-container');
     container.innerHTML = '';
+
     if (imagesFound) {
         images.forEach(img => {
             const imgWrapper = document.createElement('div');
             imgWrapper.classList.add('img-wrapper');
+
             const imgElement = document.createElement('img');
             imgElement.src = "/" + img.filepath;
             imgElement.alt = img.filename;
@@ -87,8 +87,6 @@ function displayImages(images, imagesFound) {
             deleteButton.setAttribute('data-image-id', img.id);
             deleteButton.classList.add("delete", "btn", "btn-warning");
 
-
-
             imgWrapper.appendChild(imgElement);
             imgWrapper.appendChild(editButton);
             imgWrapper.appendChild(deleteButton);
@@ -102,17 +100,17 @@ function displayImages(images, imagesFound) {
     }
 }
 
-
 $(function () {
     getFromCloud();
 
-    var canvas = document.getElementById('canvas');
-    var ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-    var img = null;
-    var imageLoaded = false;
-    var loadedFromCloud = false;
-    //Resizing
+    let img = null;
+    let imageLoaded = false;
+    let loadedFromCloud = false;
+    let cloudImgId = null;
+
     function resizeImage(img, maxWidth = 1920, maxHeight = 1080) {
         const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
         canvas.width = img.width * ratio;
@@ -136,17 +134,15 @@ $(function () {
                 drawImageOnCanvas(img);
             };
             img.src = file;
-            originalFile = img;
             loadedFromCloud = true;
             console.log("Loading from URL:", file);
         } else if (file instanceof File) {
-            var reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = function (event) {
                 img.onload = function () {
                     drawImageOnCanvas(img);
                 };
                 img.src = event.target.result;
-                originalFile = img;
                 console.log("Loading from File:", file.name);
             };
             loadedFromCloud = false;
@@ -157,62 +153,50 @@ $(function () {
     }
 
     function drawImageOnCanvas(img) {
-        // const resizedCanvas = 
         resizeImage(img);
-        // canvas.width = resizedCanvas.width;
-        // canvas.height = resizedCanvas.height;
-
-        // ctx.drawImage(resizedCanvas, 0, 0);
-
-        Caman("#canvas", img, function () {
-            this.reloadCanvasData();
-            this.render();
-        });
+        try {
+            Caman("#canvas", img, function () {
+                this.reloadCanvasData();
+                this.render();
+            });
+        } catch (error) {
+            console.error("Caman.js initialization failed:", error);
+            showPopup("Failed to initialize image editor.", "error");
+        }
 
         imageLoaded = true;
-
         $("#uploadhide").css("display", "none");
         $("#uploadshow").css("display", "initial");
     }
 
-    $('#uploadbtn').on('change', function (e) {
-        var file = e.target.files[0];
+    function handleFileUpload(e) {
+        const file = e.target.files[0];
         if (file && file.type.startsWith('image/')) {
             loadImage(file);
         } else {
             console.log("Failed to load image");
         }
-    });
-    $('#uploadnewbtn').on('change', function (e) {
-        var file = e.target.files[0];
-        if (file && file.type.startsWith('image/')) {
-            loadImage(file);
-        } else {
-            console.log("Failed to load image");
-        }
-    });
+    }
 
+    $('#uploadbtn, #uploadnewbtn').on('change', handleFileUpload);
 
-    var cloudImgId = null;
     $(document).on('click', '#edit-button', function (e) {
         const imgId = parseInt(this.getAttribute('data-image-id'));
         const imgFilename = this.getAttribute('data-image-filename');
         const storedData = JSON.parse(localStorage.getItem("cloudImages"));
-        var filters = storedData.find((img) => img.id === imgId);
+        const filters = storedData.find((img) => img.id === imgId);
 
-        console.log(imgId);
-        console.log(filters.vibrance);
         cloudImgId = imgId;
+        loadImage(`/images/${imgFilename}`);
         setTimeout(() => {
             setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
-        }, 100)
-        loadImage(`/images/${imgFilename}`);
-
+            applyFilters();
+        }, 100);
     });
 
     $(document).on('click', '#delete-button', function (e) {
-        const imgId = this.getAttribute('data-image-id')
-        console.log(imgId)
+        const imgId = this.getAttribute('data-image-id');
+        console.log(imgId);
         $.ajax({
             url: `/protected/delete/${imgId}`,
             type: 'DELETE',
@@ -226,29 +210,18 @@ $(function () {
                 showPopup('DELETE FAILED', 'error');
             }
         });
-
     });
 
-
-
-
-    $('#resetbtn').on('click', function (e) {
-        revertFilters();
-    });
-
-
-
+    $('#resetbtn').on('click', revertFilters);
 
     $('#savebtn').on('click', function () {
         if (imageLoaded) {
             Caman('#canvas', function () {
                 this.render(function () {
                     const dataURL = canvas.toDataURL('image/png');
-
                     const link = document.createElement('a');
                     link.href = dataURL;
                     link.download = 'edited-image.png';
-
                     link.click();
                 });
             });
@@ -257,7 +230,7 @@ $(function () {
 
     $('#savetocloudbtn').on('click', function () {
         if (imageLoaded) {
-            const filters = getFilterValues()
+            const filters = getFilterValues();
             if (loadedFromCloud) {
                 if (cloudImgId) {
                     console.log("image update");
@@ -286,7 +259,6 @@ $(function () {
                         const formData = new FormData();
                         formData.append('image', blob, 'original-image.png');
                         formData.append('filters', JSON.stringify(filters));
-                        console.log(formData);
                         $.ajax({
                             url: '/protected/upload',
                             type: 'POST',
@@ -307,22 +279,21 @@ $(function () {
                                 applyFilters();
 
                             },
-                            error: function (jqXHR) {
-                                console.error('Upload error:', jqXHR.status);
+                            error: function (jqXHR, textStatus, errorThrown) {
+                                console.log(jqXHR);
+                                console.error('Upload error:', jqXHR.status, textStatus, errorThrown);
+                                console.error('Response text:', jqXHR.responseText);
                                 showPopup('Failed to upload image and filters.', 'error');
                             }
                         });
-
                     }, 'image/png');
                 }, 100);
             }
         }
     });
 
-
     function revertFilters() {
         console.log("Reverting filters...");
-
         $('input[type=range]').val(0);
 
         if (img && imageLoaded) {
@@ -334,11 +305,8 @@ $(function () {
             console.log("No image loaded to revert.");
         }
     }
-    let filterTimeout;
-    $('input[type=range]').change(() => {
-        clearTimeout(filterTimeout);
-        filterTimeout = setTimeout(applyFilters, 100);
-    });
+
+    $('input[type=range]').change(applyFilters);
 
     function setSliders(contrast, vibrance, sepia, vignette, brightness, saturation, exposure, noise, sharpen) {
         $('#contrast').val(contrast);
@@ -346,12 +314,12 @@ $(function () {
         $('#sepia').val(sepia);
         $('#vignette').val(vignette);
         $('#brightness').val(brightness);
-        $('#saturation').val(saturation)
-        $('#exposure').val(exposure)
-        $('#noise').val(noise)
-        $('#sharpen').val(sharpen)
-        applyFilters();
+        $('#saturation').val(saturation);
+        $('#exposure').val(exposure);
+        $('#noise').val(noise);
+        $('#sharpen').val(sharpen);
     }
+
     function applyFilters() {
         if (!imageLoaded) {
             showPopup("Please upload an image first!", 'error');
@@ -359,14 +327,14 @@ $(function () {
             return;
         }
 
-
-        const filters = getFilterValues()
+        const filters = getFilterValues();
+        console.log("applying filters", filters);
         Caman('#canvas', img, function () {
             this.revert(false);
             this.contrast(filters.contrast)
                 .vibrance(filters.vibrance)
                 .sepia(filters.sepia)
-                .vignette(filters.vignette + '%')
+                .vignette(filters.vignette)
                 .brightness(filters.brightness)
                 .saturation(filters.saturation)
                 .exposure(filters.exposure)
@@ -375,5 +343,4 @@ $(function () {
                 .render();
         });
     }
-
 });
