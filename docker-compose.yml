@@ -8,10 +8,14 @@ services:
     depends_on:
       - db
     environment:
-      DB_HOST: host.docker.internal
+      DB_HOST: db 
       MYSQL_DATABASE: img_editor
+      MYSQL_USER: root
       MYSQL_PASSWORD: root
-
+    networks:
+      - app_network
+    volumes:
+      - ./images:/app/images  
 
   db:
     image: mysql:8
@@ -23,5 +27,13 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql  
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  
+    networks:
+      - app_network
+
+volumes:
+  mysql_data:
+
+networks:
+  app_network:
