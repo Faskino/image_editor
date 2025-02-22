@@ -85,8 +85,7 @@ func initDB() {
 	dbUser := os.Getenv("MYSQL_USER")
 	dbPassword := os.Getenv("MYSQL_PASSWORD")
 	dbHost := os.Getenv("DB_HOST")
-	dbName := os.Getenv("MYSQL_DATABASE")
-
+	dbName :=  os.Getenv("MYSQL_DATABASE")
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?parseTime=true",
 		dbUser, dbPassword, dbHost, dbName)
 	var err error
