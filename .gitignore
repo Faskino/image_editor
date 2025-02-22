@@ -1,3 +1,2 @@
 /images
-Dockerfile
-docker-compose.yml
+Dockerfile.mysql

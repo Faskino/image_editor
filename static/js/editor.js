@@ -1,4 +1,4 @@
-
+//Funkcia pre carousel scrollovanie filtrov https://webdesign.tutsplus.com/easy-slider-carousel-with-pure-css--cms-107626t
 const carousel = document.querySelector(".sliders");
 const slide = document.querySelector(".slider-group");
 
@@ -6,7 +6,7 @@ function handleCarouselMove(positive = true) {
     const slideWidth = slide.clientWidth;
     carousel.scrollLeft = positive ? carousel.scrollLeft + slideWidth : carousel.scrollLeft - slideWidth;
 }
-
+//Funkcia pre zobrazovanie popupu so správou (Príklad pre error)
 function showPopup(message, type = "success", duration = 3000) {
     let popup = document.getElementById("popup-notification");
 
@@ -27,7 +27,7 @@ function showPopup(message, type = "success", duration = 3000) {
         setTimeout(() => { popup.style.display = "none"; }, 1000);
     }, duration);
 }
-
+//Funkcia pre získanie hodnôt filtrov zo sliderov
 function getFilterValues() {
     return {
         contrast: parseInt($('#contrast').val()),
@@ -41,7 +41,7 @@ function getFilterValues() {
         sharpen: parseInt($('#sharpen').val()),
     };
 }
-
+//Funkcia pre získanie obrázkov uložených na serveri
 function getFromCloud() {
     $.post('/protected/getimages')
         .done(function (data) {
@@ -58,7 +58,7 @@ function getFromCloud() {
             showPopup('Failed to get images.', 'success');
         });
 }
-
+//Funkcia pre zobrazenie obrázkov získaných z funkcie getFromCloud():45
 function displayImages(images, imagesFound) {
     const container = document.getElementById('images-container');
     container.innerHTML = '';
@@ -102,7 +102,7 @@ function displayImages(images, imagesFound) {
 
 $(function () {
     getFromCloud();
-
+    //Premenné
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
@@ -110,14 +110,14 @@ $(function () {
     let imageLoaded = false;
     let loadedFromCloud = false;
     let cloudImgId = null;
-
+    //Zmení veľkosť obrázka
     function resizeImage(img, maxWidth = 1920, maxHeight = 1080) {
         const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
         canvas.width = img.width * ratio;
         canvas.height = img.height * ratio;
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     }
-
+    //Vyčistí canvas a načíta obrázok na canvas
     function loadImage(file) {
         revertFilters();
 
@@ -151,7 +151,7 @@ $(function () {
             console.error("Invalid file input");
         }
     }
-
+    //Vykreslí obrázok na canvas
     function drawImageOnCanvas(img) {
         resizeImage(img);
         try {
@@ -168,7 +168,7 @@ $(function () {
         $("#uploadhide").css("display", "none");
         $("#uploadshow").css("display", "initial");
     }
-
+    //Uploadne obrázok do UI
     function handleFileUpload(e) {
         const file = e.target.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -177,9 +177,64 @@ $(function () {
             console.log("Failed to load image");
         }
     }
+    //Navráti základné hodnoty sliderov
+    function revertFilters() {
+        console.log("Reverting filters...");
+        $('input[type=range]').val(0);
 
+        if (img && imageLoaded) {
+            Caman('#canvas', img, function () {
+                this.revert(false);
+                this.render();
+            });
+        } else {
+            console.log("No image loaded to revert.");
+        }
+    }
+
+    //Nastaví hodnoty sliderov na požadované hodnoty
+    function setSliders(contrast, vibrance, sepia, vignette, brightness, saturation, exposure, noise, sharpen) {
+        $('#contrast').val(contrast);
+        $('#vibrance').val(vibrance);
+        $('#sepia').val(sepia);
+        $('#vignette').val(vignette);
+        $('#brightness').val(brightness);
+        $('#saturation').val(saturation);
+        $('#exposure').val(exposure);
+        $('#noise').val(noise);
+        $('#sharpen').val(sharpen);
+    }
+    //Aplikuje filtre na canvas
+    function applyFilters() {
+        if (!imageLoaded) {
+            showPopup("Please upload an image first!", 'error');
+            revertFilters();
+            return;
+        }
+
+        const filters = getFilterValues();
+        console.log("applying filters", filters);
+        Caman('#canvas', img, function () {
+            this.revert(false);
+            this.contrast(filters.contrast)
+                .vibrance(filters.vibrance)
+                .sepia(filters.sepia)
+                .vignette(filters.vignette)
+                .brightness(filters.brightness)
+                .saturation(filters.saturation)
+                .exposure(filters.exposure)
+                .noise(filters.noise)
+                .sharpen(filters.sharpen)
+                .render();
+        });
+    }
+    //Button eventy
+
+    //Aplikuje filtre pri zmene sliderov
+    $('input[type=range]').change(applyFilters);
+    //Nahranie obrázka do UI pre úpravy
     $('#uploadbtn, #uploadnewbtn').on('change', handleFileUpload);
-
+    //Naloaduje obrázok pre následné úpravy
     $(document).on('click', '#edit-button', function (e) {
         const imgId = parseInt(this.getAttribute('data-image-id'));
         const imgFilename = this.getAttribute('data-image-filename');
@@ -193,7 +248,7 @@ $(function () {
             applyFilters();
         }, 100);
     });
-
+    //Pošle DELETE request pre odstránenie obrázka
     $(document).on('click', '#delete-button', function (e) {
         const imgId = this.getAttribute('data-image-id');
         console.log(imgId);
@@ -211,9 +266,9 @@ $(function () {
             }
         });
     });
-
+    //Resetuje všetky filtre nastavené na obrázku
     $('#resetbtn').on('click', revertFilters);
-
+    //Stiahne upravený obrázok do zariadenia
     $('#savebtn').on('click', function () {
         if (imageLoaded) {
             Caman('#canvas', function () {
@@ -227,7 +282,8 @@ $(function () {
             });
         }
     });
-
+    //Pošle POST request pre uloženie obrázka na server,
+    //alebo pri práci na obrázku z cloudu nahradí filtre
     $('#savetocloudbtn').on('click', function () {
         if (imageLoaded) {
             const filters = getFilterValues();
@@ -259,88 +315,39 @@ $(function () {
                         const formData = new FormData();
                         formData.append('image', blob, 'original-image.png');
                         formData.append('filters', JSON.stringify(filters));
-                        $.ajax({
-                            url: '/protected/upload',
-                            type: 'POST',
-                            data: formData,
-                            processData: false,
-                            contentType: false,
-                            success: function (data) {
+                        fetch('/protected/upload', {
+                            method: 'POST',
+                            body: formData,
+                            mode: 'same-origin',
+
+                        })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
                                 if (data.message === "User has exceeded the maximum allowed images") {
                                     showPopup("You have exceeded the maximum allowed images. Please delete an image before uploading a new one.", 'error');
+
                                 } else {
                                     console.log('Upload success:', data);
                                     showPopup('Image and filters uploaded successfully!', 'success');
                                     getFromCloud();
                                     loadedFromCloud = true;
                                     cloudImgId = data.data.imgId;
+                                    setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
+                                    applyFilters();
                                 }
-                                setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
-                                applyFilters();
-
-                            },
-                            error: function (jqXHR, textStatus, errorThrown) {
-                                console.log(jqXHR);
-                                console.error('Upload error:', jqXHR.status, textStatus, errorThrown);
-                                console.error('Response text:', jqXHR.responseText);
+                            })
+                            .catch(error => {
                                 showPopup('Failed to upload image and filters.', 'error');
-                            }
-                        });
+                                console.log(error);
+                            });
                     }, 'image/png');
                 }, 100);
             }
         }
     });
-
-    function revertFilters() {
-        console.log("Reverting filters...");
-        $('input[type=range]').val(0);
-
-        if (img && imageLoaded) {
-            Caman('#canvas', img, function () {
-                this.revert(false);
-                this.render();
-            });
-        } else {
-            console.log("No image loaded to revert.");
-        }
-    }
-
-    $('input[type=range]').change(applyFilters);
-
-    function setSliders(contrast, vibrance, sepia, vignette, brightness, saturation, exposure, noise, sharpen) {
-        $('#contrast').val(contrast);
-        $('#vibrance').val(vibrance);
-        $('#sepia').val(sepia);
-        $('#vignette').val(vignette);
-        $('#brightness').val(brightness);
-        $('#saturation').val(saturation);
-        $('#exposure').val(exposure);
-        $('#noise').val(noise);
-        $('#sharpen').val(sharpen);
-    }
-
-    function applyFilters() {
-        if (!imageLoaded) {
-            showPopup("Please upload an image first!", 'error');
-            revertFilters();
-            return;
-        }
-
-        const filters = getFilterValues();
-        console.log("applying filters", filters);
-        Caman('#canvas', img, function () {
-            this.revert(false);
-            this.contrast(filters.contrast)
-                .vibrance(filters.vibrance)
-                .sepia(filters.sepia)
-                .vignette(filters.vignette)
-                .brightness(filters.brightness)
-                .saturation(filters.saturation)
-                .exposure(filters.exposure)
-                .noise(filters.noise)
-                .sharpen(filters.sharpen)
-                .render();
-        });
-    }
 });

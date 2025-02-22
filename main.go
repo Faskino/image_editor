@@ -1,5 +1,6 @@
 package main
 
+//Importy
 import (
 	"context"
 	"database/sql"
@@ -21,12 +22,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func EnableCORS(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins (for testing)
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-}
-
+// Vlastné dátové typy
 type Img struct {
 	Id         int    `json:"id"`
 	Filename   string `json:"filename"`
@@ -48,9 +44,13 @@ type Img struct {
 type JsonResponse struct {
 	Message string      `json:"message"`
 	Status  int         `json:"status"`
-	Data    interface{} `json:"data,omitempty"` // Optional field for extra response data
+	Data    interface{} `json:"data,omitempty"`
+}
+type AuthService struct {
+	SecretKey string
 }
 
+// Funkcia posiela JSON Response na frontend
 func JSONResponse(w http.ResponseWriter, message string, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	log.Printf("Sending Response: Status=%d, Message=%s", status, message)
@@ -70,36 +70,51 @@ func JSONResponse(w http.ResponseWriter, message string, status int, data interf
 	log.Println(response)
 }
 
+// Inicializuje pripojenie na databázu
 var db *sql.DB
 
 func initDB() {
 	var err error
-	// db, err = sql.Open("mysql", "root:root@tcp(host.docker.internal:3306)/img_editor")
-	db, err = sql.Open("mysql", "root:root@tcp(localhost:3306)/img_editor")
+	dbUser := "root"
+	dbPassword := os.Getenv("MYSQL_PASSWORD")
+	dbHost := os.Getenv("DB_HOST")
+	dbName := os.Getenv("MYSQL_DATABASE")
+	log.Println(dbUser, dbPassword, dbHost, dbName)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s",
+		dbUser, dbPassword, dbHost, dbName)
+
+	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatalf("Could not connect to database: %v", err)
 	}
-
-	if err = db.Ping(); err != nil {
-		log.Fatalf("Could not establish connection: %v", err)
+	if err != nil {
+		log.Fatalf("Could not connect to database: %v", err)
+	}
+	for i := 0; i < 10; i++ {
+		err = db.Ping()
+		if err == nil {
+			break
+		}
+		log.Println("Retrying database connection...")
+		time.Sleep(5 * time.Second)
 	}
 
 	fmt.Println("Connected to MySQL database")
 }
+
+// Hashuje heslo
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
 }
 
+// Porovná heslá
 func checkPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
 
-type AuthService struct {
-	SecretKey string
-}
-
+// Overí správnosť JWT tokenu
 func (s *AuthService) ValidateToken(tokenString string) (bool, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -114,13 +129,13 @@ func (s *AuthService) ValidateToken(tokenString string) (bool, error) {
 	return true, nil
 }
 
+// Spracúva registráciu
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Parse the form data
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Could not parse form", http.StatusBadRequest)
 		return
@@ -163,6 +178,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("User registered successfully"))
 }
 
+// Spracúva login
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -212,6 +228,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Hx-Redirect", "/protected/editor")
 
 }
+
+// Spracúva logout
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
@@ -223,6 +241,8 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Hx-Redirect", "/login")
 }
+
+// Zistí User id z JWT tokenu
 func getUserIDFromContext(ctx context.Context) (int, error) {
 	claims, ok := ctx.Value("user").(jwt.MapClaims)
 	if !ok {
@@ -237,6 +257,7 @@ func getUserIDFromContext(ctx context.Context) (int, error) {
 	return int(userID), nil
 }
 
+// Autorizuje užívateľa na základe Cookies a skontroluje JWT token
 func authMiddleware(authService *AuthService) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +301,8 @@ func authMiddleware(authService *AuthService) mux.MiddlewareFunc {
 		})
 	}
 }
+
+// Redirectuje užívateľa pre "/"
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if cookie != nil {
@@ -290,6 +313,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 
 }
+
+// Užívateľovi zobrazí dané HTML súbory
 func serveHTML(w http.ResponseWriter, r *http.Request) {
 	page := r.URL.Path[1:]
 	if page == "" {
@@ -302,8 +327,11 @@ func serveHTML(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "static/"+page+".html")
 }
 
+// Spracúva obrázky z frontendu overuje ich počet, ukladá ich na server aj do databázy spoločne s filtrami
 func saveImageHandler(w http.ResponseWriter, r *http.Request) {
-	EnableCORS(w)
+	if r.Method == http.MethodOptions {
+		return
+	}
 	id, err := getUserIDFromContext(r.Context())
 	if err != nil {
 		http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
@@ -318,10 +346,8 @@ func saveImageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("iuwfwnef")
 	if imageCount >= 3 {
 		JSONResponse(w, "User has exceeded the maximum allowed images", http.StatusOK, nil)
-
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 20<<20)
@@ -403,6 +429,8 @@ func saveImageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	JSONResponse(w, "Image and filters uploaded successfully", http.StatusCreated, map[string]int64{"imgId": imageID})
 }
+
+// Updatuje tabuľku filters
 func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -420,7 +448,6 @@ func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var filepath string
-	//Overit uzivatela
 	err = db.QueryRow("SELECT filepath FROM images WHERE id = ? AND user_id = ?", imageId, userID).Scan(&filepath)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -430,7 +457,6 @@ func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	}
-	//ziskat filtre z requestu
 	filtersJSON := r.FormValue("filters")
 	if filtersJSON == "" {
 		http.Error(w, "Missing filters", http.StatusBadRequest)
@@ -443,7 +469,6 @@ func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to parse filters", http.StatusBadRequest)
 		return
 	}
-	//updatnut zaznam
 	_, err = db.Exec("UPDATE image_filters SET contrast = ?, vibrance = ?, sepia = ?, vignette = ?, brightness = ?, saturation = ?, exposure = ?, noise = ?, sharpen = ? where image_id = ?;",
 		filters["contrast"],
 		filters["vibrance"],
@@ -461,12 +486,9 @@ func updateFiltersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSONResponse(w, "Filters Updated", http.StatusOK, nil)
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusOK)
-	// w.Write([]byte(`{"message": "Filters Updated"}`))
-
 }
 
+// Získa cesty ku obrázkom z databázy
 func getImages(w http.ResponseWriter, r *http.Request) {
 	id, err := getUserIDFromContext(r.Context())
 	if err != nil {
@@ -502,6 +524,8 @@ func getImages(w http.ResponseWriter, r *http.Request) {
 	JSONResponse(w, "Images retrieved", http.StatusOK, images)
 
 }
+
+// Maže obrázky z databázy a zo servera
 func deleteImageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -550,13 +574,12 @@ func deleteImageHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	initDB()
 	defer db.Close()
-
+	//Vytvorenie overenia
 	authService := &AuthService{SecretKey: "ac17c7ae33f56f6aafc550dce6f5b98134be4d96903c8fd5538a01ec4d2bb5e6"}
 	r := mux.NewRouter()
-
+	//Definuje chránené cesty
 	protected := r.PathPrefix("/protected").Subrouter()
 	protected.Use(authMiddleware(authService))
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	protected.HandleFunc("/hello", serveHTML).Methods("GET")
 	protected.HandleFunc("/editor", serveHTML).Methods("GET")
 	protected.HandleFunc("/upload", saveImageHandler).Methods("POST")
@@ -564,6 +587,8 @@ func main() {
 	protected.HandleFunc("/delete/{id}", deleteImageHandler).Methods("DELETE")
 	protected.HandleFunc("/update", updateFiltersHandler).Methods("POST")
 
+	//Ostatné cesty
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	r.PathPrefix("/images/").Handler(http.StripPrefix("/images/", http.FileServer(http.Dir("images"))))
 	r.HandleFunc("/login", serveHTML).Methods("GET")
 	r.HandleFunc("/register", serveHTML).Methods("GET")
@@ -573,6 +598,6 @@ func main() {
 	r.HandleFunc("/", indexHandler).Methods("GET")
 
 	fmt.Println("Server started at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe("0.0.0.0:8080", r))
 
 }
