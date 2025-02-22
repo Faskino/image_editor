@@ -1,3 +1,6 @@
+CREATE USER 'mysql' @'%' IDENTIFIED BY 'Or4ndzov4Ceresn456';
+GRANT ALL PRIVILEGES ON img_editor.* TO 'mysql' @'%';
+FLUSH PRIVILEGES;
 USE img_editor;
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,

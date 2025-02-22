@@ -19,6 +19,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -53,7 +54,6 @@ type AuthService struct {
 // Funkcia posiela JSON Response na frontend
 func JSONResponse(w http.ResponseWriter, message string, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	log.Printf("Sending Response: Status=%d, Message=%s", status, message)
 	w.WriteHeader(status)
 
 	response := JsonResponse{
@@ -67,39 +67,46 @@ func JSONResponse(w http.ResponseWriter, message string, status int, data interf
 		log.Println("Error encoding JSON response:", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
-	log.Println(response)
+	// log.Println(response)
 }
 
 // Inicializuje pripojenie na databázu
 var db *sql.DB
 
 func initDB() {
-	var err error
-	dbUser := "root"
+	if os.Getenv("ENV") != "production" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Println("Could not load .env file, using system environment variables")
+		} else {
+			log.Println("Loaded .env file")
+		}
+	}
+	dbUser := os.Getenv("MYSQL_USER")
 	dbPassword := os.Getenv("MYSQL_PASSWORD")
 	dbHost := os.Getenv("DB_HOST")
 	dbName := os.Getenv("MYSQL_DATABASE")
-	log.Println(dbUser, dbPassword, dbHost, dbName)
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s",
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?parseTime=true",
 		dbUser, dbPassword, dbHost, dbName)
+	var err error
 
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatalf("Could not connect to database: %v", err)
+		log.Fatalf("Could not create database connection: %v", err)
 	}
-	if err != nil {
-		log.Fatalf("Could not connect to database: %v", err)
-	}
+
 	for i := 0; i < 10; i++ {
 		err = db.Ping()
 		if err == nil {
-			break
+			fmt.Println("Connected to database")
+			return
 		}
-		log.Println("Retrying database connection...")
+		log.Println("Retrying database connection...", err)
 		time.Sleep(5 * time.Second)
 	}
 
-	fmt.Println("Connected to MySQL database")
+	log.Fatalf("❌ Could not connect to database after 10 attempts: %v", err)
 }
 
 // Hashuje heslo
@@ -210,8 +217,15 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		"id":       userID,
 		"exp":      time.Now().Add(24 * time.Hour).Unix(),
 	})
-
-	tokenString, err := token.SignedString([]byte("ac17c7ae33f56f6aafc550dce6f5b98134be4d96903c8fd5538a01ec4d2bb5e6"))
+	if os.Getenv("ENV") != "production" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Println("Could not load .env file, using system environment variables")
+		} else {
+			log.Println("Loaded .env file")
+		}
+	}
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_TOKEN_STRING")))
 	if err != nil {
 		http.Error(w, "Could not create token", http.StatusInternalServerError)
 		return
@@ -224,7 +238,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 	})
 
-	log.Println(r.Cookie("session_token"))
 	w.Header().Add("Hx-Redirect", "/protected/editor")
 
 }

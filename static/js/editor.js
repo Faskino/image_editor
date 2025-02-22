@@ -219,12 +219,12 @@ $(function () {
             this.contrast(filters.contrast)
                 .vibrance(filters.vibrance)
                 .sepia(filters.sepia)
-                .vignette(filters.vignette)
                 .brightness(filters.brightness)
                 .saturation(filters.saturation)
                 .exposure(filters.exposure)
                 .noise(filters.noise)
                 .sharpen(filters.sharpen)
+                .vignette(filters.vignette)
                 .render();
         });
     }

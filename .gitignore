@@ -1,2 +1,5 @@
-/images
+.env
+aws
 Dockerfile.mysql
+/images
+tmp

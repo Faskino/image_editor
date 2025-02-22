@@ -7,11 +7,8 @@ services:
       - "8080:8080"
     depends_on:
       - db
-    environment:
-      DB_HOST: db 
-      MYSQL_DATABASE: img_editor
-      MYSQL_USER: root
-      MYSQL_PASSWORD: root
+    env_file:
+      - .env
     networks:
       - app_network
     volumes:
@@ -20,10 +17,8 @@ services:
   db:
     image: mysql:8
     restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: img_editor
-      MYSQL_PASSWORD: root
+    env_file:
+      - .env
     ports:
       - "3306:3306"
     volumes:
