@@ -17,9 +17,8 @@ services:
   db:
     image: mysql:8
     restart: always
-    environment:
-      - MYSQL_ROOT_PASSWORD=n0r00tf0rU7816
-      - MYSQL_DATABASE=img_editor
+    env_file:
+      - .env
     ports:
       - "3306:3306"
     volumes:

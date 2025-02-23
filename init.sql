@@ -1,4 +1,3 @@
-CREATE USER 'user' @'%' IDENTIFIED BY 'Or4ndzov4Ceresn456';
 GRANT ALL PRIVILEGES ON img_editor.* TO 'user' @'%';
 FLUSH PRIVILEGES;
 USE img_editor;
