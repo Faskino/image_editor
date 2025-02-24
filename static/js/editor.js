@@ -27,6 +27,13 @@ function showPopup(message, type = "success", duration = 3000) {
         setTimeout(() => { popup.style.display = "none"; }, 1000);
     }, duration);
 }
+//funckia zobrazí správu zatiaľ čo sa filtre budú renderovať
+function showLoading(show) {
+    const loadingElement = document.getElementById("loading");
+    if (loadingElement) {
+        loadingElement.style.display = show ? "flex" : "none";
+    }
+}
 //Funkcia pre získanie hodnôt filtrov zo sliderov
 function getFilterValues() {
     return {
@@ -156,7 +163,7 @@ $(function () {
         resizeImage(img);
         try {
             Caman("#canvas", img, function () {
-                this.reloadCanvasData();
+                this.reloadCanvasData()
                 this.render();
             });
         } catch (error) {
@@ -184,7 +191,7 @@ $(function () {
 
         if (img && imageLoaded) {
             Caman('#canvas', img, function () {
-                this.revert(false);
+                this.revert(false)
                 this.render();
             });
         } else {
@@ -204,6 +211,7 @@ $(function () {
         $('#noise').val(noise);
         $('#sharpen').val(sharpen);
     }
+
     //Aplikuje filtre na canvas
     function applyFilters() {
         if (!imageLoaded) {
@@ -211,11 +219,11 @@ $(function () {
             revertFilters();
             return;
         }
-
         const filters = getFilterValues();
         console.log("applying filters", filters);
+        showLoading(true);
         Caman('#canvas', img, function () {
-            this.revert(false);
+            this.revert(false)
             this.contrast(filters.contrast)
                 .vibrance(filters.vibrance)
                 .sepia(filters.sepia)
@@ -225,7 +233,10 @@ $(function () {
                 .noise(filters.noise)
                 .sharpen(filters.sharpen)
                 .vignette(filters.vignette)
-                .render();
+                .render(() => {
+                    showLoading(false);
+                }
+                );
         });
     }
     //Button eventy

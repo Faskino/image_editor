@@ -85,7 +85,7 @@ func initDB() {
 	dbUser := os.Getenv("MYSQL_USER")
 	dbPassword := os.Getenv("MYSQL_PASSWORD")
 	dbHost := os.Getenv("DB_HOST")
-	dbName :=  os.Getenv("MYSQL_DATABASE")
+	dbName := os.Getenv("MYSQL_DATABASE")
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?parseTime=true",
 		dbUser, dbPassword, dbHost, dbName)
 	var err error
@@ -101,11 +101,11 @@ func initDB() {
 			fmt.Println("Connected to database")
 			return
 		}
-		log.Println("Retrying database connection...", err)
+		log.Println("Retrying database connection", err)
 		time.Sleep(5 * time.Second)
 	}
 
-	log.Fatalf("❌ Could not connect to database after 10 attempts: %v", err)
+	log.Fatalf("Could not connect to database: %v", err)
 }
 
 // Hashuje heslo
@@ -118,21 +118,6 @@ func hashPassword(password string) (string, error) {
 func checkPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
-}
-
-// Overí správnosť JWT tokenu
-func (s *AuthService) ValidateToken(tokenString string) (bool, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(s.SecretKey), nil
-	})
-
-	if err != nil || !token.Valid {
-		return false, err
-	}
-	return true, nil
 }
 
 // Spracúva registráciu
@@ -182,6 +167,21 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Hx-Redirect", "/login")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User registered successfully"))
+}
+
+// Overí správnosť JWT tokenu
+func (s *AuthService) ValidateToken(tokenString string) (bool, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(s.SecretKey), nil
+	})
+
+	if err != nil || !token.Valid {
+		return false, err
+	}
+	return true, nil
 }
 
 // Spracúva login

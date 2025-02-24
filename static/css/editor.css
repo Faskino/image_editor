@@ -237,11 +237,6 @@ input[type="file"] {
 }
 
 @media only screen and (max-width:800px) {
-    .editor {
-        display: flex;
-        flex-direction: column;
-    }
-
     .sliders {
         width: 200px;
         height: 3rem;
@@ -257,6 +252,12 @@ input[type="file"] {
         gap: 0;
         height: 100%;
     }
+
+    .editor {
+        display: flex;
+        flex-direction: column;
+    }
+
 
 
     .carousel-arrow {
@@ -388,4 +389,16 @@ input[type="file"] {
 
 #popup-notification.error {
     background-color: var(--color-warning);
+}
+
+#loading {
+    position: absolute;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    transform: translateX(-50%);
+    background: rgba(var(--color-secondary-rgba), 0.2);
+    z-index: 2;
+    align-items: center;
+    justify-content: center;
 }
