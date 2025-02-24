@@ -2,4 +2,4 @@
 aws
 Dockerfile.mysql
 /images
-tmp
+/tmp
