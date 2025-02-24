@@ -125,7 +125,7 @@ $(function () {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     }
     //Vyčistí canvas a načíta obrázok na canvas
-    function loadImage(file) {
+    function loadImage(file, callback) {
         revertFilters();
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -139,6 +139,7 @@ $(function () {
         if (typeof file === "string") {
             img.onload = function () {
                 drawImageOnCanvas(img);
+                if (callback) callback();
             };
             img.src = file;
             loadedFromCloud = true;
@@ -148,6 +149,7 @@ $(function () {
             reader.onload = function (event) {
                 img.onload = function () {
                     drawImageOnCanvas(img);
+                    if (callback) callback();
                 };
                 img.src = event.target.result;
                 console.log("Loading from File:", file.name);
@@ -185,14 +187,16 @@ $(function () {
         }
     }
     //Navráti základné hodnoty sliderov
-    function revertFilters() {
+    function revertFilters(callback) {
         console.log("Reverting filters...");
         $('input[type=range]').val(0);
 
         if (img && imageLoaded) {
             Caman('#canvas', img, function () {
                 this.revert(false)
-                this.render();
+                this.render(() => {
+                    if (callback) callback()
+                });
             });
         } else {
             console.log("No image loaded to revert.");
@@ -253,11 +257,10 @@ $(function () {
         const filters = storedData.find((img) => img.id === imgId);
 
         cloudImgId = imgId;
-        loadImage(`/images/${imgFilename}`);
-        setTimeout(() => {
+        loadImage(`/images/${imgFilename}`, function () {
             setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
             applyFilters();
-        }, 100);
+        });
     });
     //Pošle DELETE request pre odstránenie obrázka
     $(document).on('click', '#delete-button', function (e) {
@@ -320,8 +323,7 @@ $(function () {
                     showPopup("There was an error", 'error');
                 }
             } else {
-                revertFilters();
-                setTimeout(() => {
+                revertFilters(function () {
                     canvas.toBlob(function (blob) {
                         const formData = new FormData();
                         formData.append('image', blob, 'original-image.png');
@@ -341,7 +343,8 @@ $(function () {
                             .then(data => {
                                 if (data.message === "User has exceeded the maximum allowed images") {
                                     showPopup("You have exceeded the maximum allowed images. Please delete an image before uploading a new one.", 'error');
-
+                                    setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
+                                    applyFilters();
                                 } else {
                                     console.log('Upload success:', data);
                                     showPopup('Image and filters uploaded successfully!', 'success');
@@ -355,9 +358,12 @@ $(function () {
                             .catch(error => {
                                 showPopup('Failed to upload image and filters.', 'error');
                                 console.log(error);
+                                setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
+                                applyFilters();
                             });
                     }, 'image/png');
-                }, 100);
+                });
+
             }
         }
     });
