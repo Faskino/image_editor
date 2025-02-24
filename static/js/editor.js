@@ -187,7 +187,7 @@ $(function () {
         }
     }
     //Navráti základné hodnoty sliderov
-    function revertFilters(callback) {
+    function revertFilters(callback = function () { }) {
         console.log("Reverting filters...");
         $('input[type=range]').val(0);
 
@@ -195,7 +195,7 @@ $(function () {
             Caman('#canvas', img, function () {
                 this.revert(false)
                 this.render(() => {
-                    if (callback) callback()
+                    callback()
                 });
             });
         } else {
@@ -281,7 +281,9 @@ $(function () {
         });
     });
     //Resetuje všetky filtre nastavené na obrázku
-    $('#resetbtn').on('click', revertFilters);
+    $('#resetbtn').on('click', function () {
+        revertFilters(function () { });
+    });
     //Stiahne upravený obrázok do zariadenia
     $('#savebtn').on('click', function () {
         if (imageLoaded) {
