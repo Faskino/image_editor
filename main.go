@@ -54,14 +54,13 @@ type AuthService struct {
 // Funkcia posiela JSON Response na frontend
 func JSONResponse(w http.ResponseWriter, message string, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
 	response := JsonResponse{
 		Message: message,
 		Status:  status,
 		Data:    data,
 	}
 
+	w.WriteHeader(status)
 	err := json.NewEncoder(w).Encode(response)
 	if err != nil {
 		log.Println("Error encoding JSON response:", err)
@@ -209,6 +208,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !checkPasswordHash(password, hashedPassword) {
 		fmt.Fprintf(w, `<div>Invalid username or password</div>`)
+		return
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

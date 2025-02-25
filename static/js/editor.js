@@ -265,7 +265,6 @@ $(function () {
     //Pošle DELETE request pre odstránenie obrázka
     $(document).on('click', '#delete-button', function (e) {
         const imgId = this.getAttribute('data-image-id');
-        console.log(imgId);
         $.ajax({
             url: `/protected/delete/${imgId}`,
             type: 'DELETE',
@@ -302,6 +301,7 @@ $(function () {
     //alebo pri práci na obrázku z cloudu nahradí filtre
     $('#savetocloudbtn').on('click', function () {
         if (imageLoaded) {
+            $('#savetocloudbtn').prop("disabled", true);
             const filters = getFilterValues();
             if (loadedFromCloud) {
                 if (cloudImgId) {
@@ -315,11 +315,13 @@ $(function () {
                             console.log("Update successful:", response);
                             showPopup("Filters updated successfully");
                             getFromCloud();
+                            $('#savetocloudbtn').prop("disabled", false);
                         })
                         .fail(error => {
                             console.error("Error updating image:", error);
                             showPopup("There was an error updating the image", 'error');
-                        });
+                        })
+
 
                 } else {
                     showPopup("There was an error", 'error');
@@ -362,7 +364,10 @@ $(function () {
                                 console.log(error);
                                 setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
                                 applyFilters();
-                            });
+                            })
+                            .finally(() => {
+                                $('#savetocloudbtn').prop("disabled", false);
+                            })
                     }, 'image/png');
                 });
 
