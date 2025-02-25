@@ -28,10 +28,12 @@ function showPopup(message, type = "success", duration = 3000) {
     }, duration);
 }
 //funckia zobrazí správu zatiaľ čo sa filtre budú renderovať
-function showLoading(show) {
+function showLoading(show, message = "Applying filters") {
     const loadingElement = document.getElementById("loading");
+    const loadingText = document.querySelector("#loading>p")
     if (loadingElement) {
         loadingElement.style.display = show ? "flex" : "none";
+        loadingText.innerHTML = message;
     }
 }
 //Funkcia pre získanie hodnôt filtrov zo sliderov
@@ -224,8 +226,7 @@ $(function () {
             return;
         }
         const filters = getFilterValues();
-        console.log("applying filters", filters);
-        showLoading(true);
+        showLoading(true, "Applying filters");
         Caman('#canvas', img, function () {
             this.revert(false)
             this.contrast(filters.contrast)
@@ -302,6 +303,7 @@ $(function () {
     $('#savetocloudbtn').on('click', function () {
         if (imageLoaded) {
             $('#savetocloudbtn').prop("disabled", true);
+            showLoading(true, "Uploading image");
             const filters = getFilterValues();
             if (loadedFromCloud) {
                 if (cloudImgId) {
@@ -316,10 +318,13 @@ $(function () {
                             showPopup("Filters updated successfully");
                             getFromCloud();
                             $('#savetocloudbtn').prop("disabled", false);
+                            showLoading(false);
                         })
                         .fail(error => {
                             console.error("Error updating image:", error);
                             showPopup("There was an error updating the image", 'error');
+                            $('#savetocloudbtn').prop("disabled", false);
+                            showLoading(false);
                         })
 
 
@@ -347,25 +352,28 @@ $(function () {
                             .then(data => {
                                 if (data.message === "User has exceeded the maximum allowed images") {
                                     showPopup("You have exceeded the maximum allowed images. Please delete an image before uploading a new one.", 'error');
-                                    setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
-                                    applyFilters();
                                 } else {
                                     console.log('Upload success:', data);
                                     showPopup('Image and filters uploaded successfully!', 'success');
                                     getFromCloud();
                                     loadedFromCloud = true;
                                     cloudImgId = data.data.imgId;
-                                    setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
-                                    applyFilters();
+
                                 }
+                                showLoading(false);
+                                setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
+                                applyFilters();
+
                             })
                             .catch(error => {
                                 showPopup('Failed to upload image and filters.', 'error');
                                 console.log(error);
                                 setSliders(filters.contrast, filters.vibrance, filters.sepia, filters.vignette, filters.brightness, filters.saturation, filters.exposure, filters.noise, filters.sharpen);
                                 applyFilters();
+
                             })
                             .finally(() => {
+                                showLoading(false)
                                 $('#savetocloudbtn').prop("disabled", false);
                             })
                     }, 'image/png');
